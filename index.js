@@ -30,7 +30,10 @@ function realWorkerFn(self) {
             workerCache[data.workerId] = new Worker();
         }
         if (data.type) { // message to the worker
-            workerCache[data.workerId].onmessage(data.type, data.data);
+            var worker = workerCache[data.workerId];
+            if (worker.onmessage) {
+                worker.onmessage(data.type, data.data);
+            }
         }
         if (data.terminate) { // terminate the worker
             var worker = workerCache[data.workerId];
@@ -89,6 +92,7 @@ function PooledWorker(moduleFn) {
 }
 
 PooledWorker.prototype = {
+
     send: function (type, data) {
         this.worker.postMessage({
             workerId: this.id,
@@ -96,8 +100,6 @@ PooledWorker.prototype = {
             data: data
         });
     },
-
-    onmessage: function () {},
 
     terminate: function () {
         this.worker.postMessage({

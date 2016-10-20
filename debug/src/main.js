@@ -8,7 +8,7 @@ var worker = new PooledWorker(require('./worker'));
 worker.onmessage = function (type, data) {
     if (type === 'bar') {
         console.log('main: got bar from worker');
-        console.log('main: sending baz from worker');
+        console.log('main: sending baz to worker');
         this.send('baz');
     }
 };

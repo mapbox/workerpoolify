@@ -76,7 +76,6 @@ function PooledWorker(moduleFn) {
     var addedSources = {};
     resolveSources(workerSources, addedSources, this.moduleId);
     var src = generateWorkerSource(Object.keys(addedSources));
-    console.log(src);
     var bundleUrl = createURL(src);
 
     // propagate the bundle additions to all pool workers

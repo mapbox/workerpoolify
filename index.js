@@ -19,6 +19,7 @@ function realWorkerFn(self) {
 
     self.onmessage = function (e) {
         var data = e.data;
+        var worker;
 
         if (data.bundle) { // add missing dependencies
             self.importScripts(data.bundle);
@@ -30,13 +31,13 @@ function realWorkerFn(self) {
             workerCache[data.workerId] = new Worker();
         }
         if (data.type) { // process message to the worker
-            var worker = workerCache[data.workerId];
+            worker = workerCache[data.workerId];
             if (worker.onmessage) {
                 worker.onmessage(data.type, data.data);
             }
         }
         if (data.terminate) { // terminate the worker
-            var worker = workerCache[data.workerId];
+            worker = workerCache[data.workerId];
             delete workerCache[data.workerId];
             if (worker.onterminate) {
                 worker.onterminate();
@@ -47,6 +48,7 @@ function realWorkerFn(self) {
 
 var workerSources = {}; // global set of deps we already have on the worker side
 var workerInstances = {}; // global set of PooledWorker instances
+var workerPool = []; // actual worker pool
 
 function handleWorkerMessage(e) {
     var worker = workerInstances[e.data.workerId];
@@ -55,17 +57,29 @@ function handleWorkerMessage(e) {
     }
 }
 
-// TODO make it a pool of workers
-var realWorker = createWorker('(' + realWorkerFn + ')(self)');
-realWorker.onmessage = handleWorkerMessage;
+function initWorkerPool() {
+    for (var i = 0; i < PooledWorker.workerCount; i++) {
+        var realWorker = createWorker('(' + realWorkerFn + ')(self)');
+        realWorker.onmessage = handleWorkerMessage;
+        workerPool.push(realWorker);
+    }
+}
+
+function broadcastBundle(url) {
+    for (var i = 0; i < workerPool.length; i++) {
+        workerPool[i].postMessage({bundle: url});
+    }
+}
 
 var lastWorkerId = 0;
 
 function PooledWorker(moduleFn) {
     this.id = lastWorkerId++;
 
-    // TODO pick a worker from a pool of workers
-    this.worker = realWorker;
+    if (workerPool.length === 0) {
+        initWorkerPool();
+    }
+    this.worker = workerPool[this.id % PooledWorker.workerCount];
 
     workerInstances[this.id] = this;
 
@@ -82,9 +96,7 @@ function PooledWorker(moduleFn) {
     var bundleUrl = createURL(src);
 
     // propagate the bundle additions to all pool workers
-    this.worker.postMessage({
-        bundle: bundleUrl
-    });
+    broadcastBundle(bundleUrl);
 
     // initialize pooled worker instance on the worker side
     this.worker.postMessage({
@@ -92,6 +104,8 @@ function PooledWorker(moduleFn) {
         moduleId: this.moduleId
     });
 }
+
+PooledWorker.workerCount = 4;
 
 PooledWorker.prototype = {
 

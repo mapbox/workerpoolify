@@ -1,5 +1,5 @@
 {
-  "name": "workerpool",
+  "name": "workerpoolify",
   "version": "0.0.0",
   "description": "A worker pool for Browserify-bundled projects.",
   "main": "index.js",

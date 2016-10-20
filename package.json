@@ -1,0 +1,23 @@
+{
+  "name": "workerpool",
+  "version": "0.0.0",
+  "description": "A worker pool for Browserify-bundled projects.",
+  "main": "index.js",
+  "scripts": {
+    "test": "eslint index.js",
+    "build-debug": "browserify debug/src/main.js > debug/main.js"
+  },
+  "keywords": [],
+  "author": "Vladimir Agafonkin",
+  "license": "ISC",
+  "dependencies": {
+    "browserify": "^13.1.0"
+  },
+  "devDependencies": {
+    "eslint": "^3.8.1",
+    "eslint-config-mourner": "^2.0.1"
+  },
+  "eslintConfig": {
+    "extends": "mourner"
+  }
+}

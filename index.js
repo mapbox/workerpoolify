@@ -20,16 +20,16 @@ function realWorkerFn(self) {
     self.onmessage = function (e) {
         var data = e.data;
 
-        if (data.bundle) { // adding dependencies
+        if (data.bundle) { // add missing dependencies
             self.importScripts(data.bundle);
         }
-        if (data.moduleId) { // creating worker instance
+        if (data.moduleId) { // create worker instance
             var Worker = self.require(data.moduleId);
             Worker.prototype.send = send;
             Worker.prototype.workerId = data.workerId;
             workerCache[data.workerId] = new Worker();
         }
-        if (data.type) { // message to the worker
+        if (data.type) { // process message to the worker
             var worker = workerCache[data.workerId];
             if (worker.onmessage) {
                 worker.onmessage(data.type, data.data);
@@ -45,10 +45,8 @@ function realWorkerFn(self) {
     };
 }
 
-var lastId = 0;
-var workerSources = {};
-
-var workerInstances = {};
+var workerSources = {}; // global set of deps we already have on the worker side
+var workerInstances = {}; // global set of PooledWorker instances
 
 function handleWorkerMessage(e) {
     var worker = workerInstances[e.data.workerId];
@@ -57,11 +55,16 @@ function handleWorkerMessage(e) {
     }
 }
 
+// TODO make it a pool of workers
 var realWorker = createWorker('(' + realWorkerFn + ')(self)');
 realWorker.onmessage = handleWorkerMessage;
 
+var lastWorkerId = 0;
+
 function PooledWorker(moduleFn) {
-    this.id = lastId++;
+    this.id = lastWorkerId++;
+
+    // TODO pick a worker from a pool of workers
     this.worker = realWorker;
 
     workerInstances[this.id] = this;
@@ -109,13 +112,15 @@ PooledWorker.prototype = {
     }
 };
 
+// generates a bundle from a set of Browserify deps
 function generateWorkerSource(deps) {
-    return 'self.require = (' + browserifyBundleFn + ')({' + deps.map(function (key) {
+    return 'self.require=(' + browserifyBundleFn + ')({' + deps.map(function (key) {
         var source = browserifySources[key];
         return JSON.stringify(key) + ':[' + source[0] + ',' + JSON.stringify(source[1]) + ']';
     }).join(',') + '},{},[])';
 }
 
+// resolves Browserify deps and finds all modules than are not yet on the worker side
 function resolveSources(workerSources, addedSources, key) {
     if (workerSources[key]) return;
 
@@ -128,6 +133,7 @@ function resolveSources(workerSources, addedSources, key) {
     }
 }
 
+// creates a worker from code
 function createWorker(src) {
     var workerUrl = createURL(src);
     var worker = new Worker(workerUrl);
@@ -135,6 +141,7 @@ function createWorker(src) {
     return worker;
 }
 
+// creates an Blob object URL from code
 function createURL(src) {
     var URL = window.URL || window.webkitURL;
     var blob = new Blob([src], {type: 'text/javascript'});

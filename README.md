@@ -4,7 +4,7 @@ An experimental worker pool for Browserify-bundled projects.
 Unlike [webworkify](https://github.com/substack/webworkify),
 it allows you to create many lightweight "workers"
 with an <a href="https://en.wikipedia.org/wiki/Thread_(computing)#M:N_.28hybrid_threading.29">N:M ratio</a>
-to a pool of real Web Worker instances.
+to a pool of native web workers.
 
 When you create a new pooled worker,
 its module dependencies are lazily loaded on the worker side with some clever tricks.

@@ -6,8 +6,8 @@ var browserifyCache = arguments[5];
 
 module.exports = PooledWorker;
 
-function realWorkerFn(self) {
-    var workerCache = {};
+function nativeWorkerFn(self) {
+    var workersidePooledWorkers = {};
 
     function send(type, data) {
         self.postMessage({
@@ -17,6 +17,21 @@ function realWorkerFn(self) {
         });
     }
 
+    function createWorkersidePooledWorker(moduleId, workerId) {
+        var WorkerClass = self.require(moduleId);
+
+        if (WorkerClass.prototype.send) {
+            throw new Error('send property already defined for pooled worker');
+        }
+        if (WorkerClass.prototype.send) {
+            throw new Error('send property already defined for pooled worker');
+        }
+        WorkerClass.prototype.send = send;
+        WorkerClass.prototype.workerId = workerId;
+
+        workersidePooledWorkers[workerId] = new WorkerClass();
+    }
+
     self.onmessage = function (e) {
         var data = e.data;
         var worker;
@@ -24,21 +39,18 @@ function realWorkerFn(self) {
         if (data.bundle) { // add missing dependencies
             self.importScripts(data.bundle);
         }
-        if (data.moduleId) { // create worker instance
-            var Worker = self.require(data.moduleId);
-            Worker.prototype.send = send;
-            Worker.prototype.workerId = data.workerId;
-            workerCache[data.workerId] = new Worker();
+        if (data.moduleId) { // create workerside pooled worker
+            createWorkersidePooledWorker(data.moduleId, data.workerId);
         }
         if (data.type) { // process message to the worker
-            worker = workerCache[data.workerId];
+            worker = workersidePooledWorkers[data.workerId];
             if (worker.onmessage) {
                 worker.onmessage(data.type, data.data);
             }
         }
         if (data.terminate) { // terminate the worker
-            worker = workerCache[data.workerId];
-            delete workerCache[data.workerId];
+            worker = workersidePooledWorkers[data.workerId];
+            delete workersidePooledWorkers[data.workerId];
             if (worker.onterminate) {
                 worker.onterminate();
             }
@@ -47,11 +59,11 @@ function realWorkerFn(self) {
 }
 
 var workerSources = {}; // global set of deps we already have on the worker side
-var workerInstances = {}; // global set of PooledWorker instances
-var workerPool = []; // actual worker pool
+var pooledWorkers = {}; // global set of PooledWorker instances
+var nativeWorkers = []; // a pool of native web workers
 
 function handleWorkerMessage(e) {
-    var worker = workerInstances[e.data.workerId];
+    var worker = pooledWorkers[e.data.workerId];
     if (worker) {
         worker.onmessage(e.data.type, e.data.data);
     }
@@ -59,15 +71,15 @@ function handleWorkerMessage(e) {
 
 function initWorkerPool() {
     for (var i = 0; i < PooledWorker.workerCount; i++) {
-        var realWorker = createWorker('(' + realWorkerFn + ')(self)');
-        realWorker.onmessage = handleWorkerMessage;
-        workerPool.push(realWorker);
+        var nativeWorker = createWorker('(' + nativeWorkerFn + ')(self)');
+        nativeWorker.onmessage = handleWorkerMessage;
+        nativeWorkers.push(nativeWorker);
     }
 }
 
 function broadcastBundle(url) {
-    for (var i = 0; i < workerPool.length; i++) {
-        workerPool[i].postMessage({bundle: url});
+    for (var i = 0; i < nativeWorkers.length; i++) {
+        nativeWorkers[i].postMessage({bundle: url});
     }
 }
 
@@ -76,12 +88,12 @@ var lastWorkerId = 0;
 function PooledWorker(moduleFn) {
     this.id = lastWorkerId++;
 
-    if (workerPool.length === 0) {
+    if (nativeWorkers.length === 0) {
         initWorkerPool();
     }
-    this.worker = workerPool[this.id % PooledWorker.workerCount];
+    this.worker = nativeWorkers[this.id % PooledWorker.workerCount];
 
-    workerInstances[this.id] = this;
+    pooledWorkers[this.id] = this;
 
     // make a blog URL out of any worker bundle additions
     for (var id in browserifyCache) {
@@ -92,7 +104,7 @@ function PooledWorker(moduleFn) {
     }
     var addedSources = {};
     resolveSources(workerSources, addedSources, this.moduleId);
-    var src = generateWorkerSource(Object.keys(addedSources));
+    var src = generateWorkerBundle(Object.keys(addedSources));
     var bundleUrl = createURL(src);
 
     // propagate the bundle additions to all pool workers
@@ -122,12 +134,12 @@ PooledWorker.prototype = {
             workerId: this.id,
             terminate: true
         });
-        delete workerInstances[this.id];
+        delete pooledWorkers[this.id];
     }
 };
 
 // generates a bundle from a set of Browserify deps
-function generateWorkerSource(deps) {
+function generateWorkerBundle(deps) {
     return 'self.require=(' + browserifyBundleFn + ')({' + deps.map(function (key) {
         var source = browserifySources[key];
         return JSON.stringify(key) + ':[' + source[0] + ',' + JSON.stringify(source[1]) + ']';

@@ -20,14 +20,15 @@ function nativeWorkerFn(self) {
     function createWorkersidePooledWorker(moduleId, workerId) {
         var WorkerClass = self.require(moduleId);
 
-        if (WorkerClass.prototype.send) {
-            throw new Error('send property already defined for pooled worker');
+        var proto = WorkerClass.prototype;
+        if (proto.send) {
+            throw new Error('pooled worker class should not have a send property');
         }
-        if (WorkerClass.prototype.send) {
-            throw new Error('send property already defined for pooled worker');
+        if (proto.workerId) {
+            throw new Error('pooled worker class should not have a workerId property');
         }
-        WorkerClass.prototype.send = send;
-        WorkerClass.prototype.workerId = workerId;
+        proto.send = send;
+        proto.workerId = workerId;
 
         workersidePooledWorkers[workerId] = new WorkerClass();
     }
@@ -61,59 +62,26 @@ function nativeWorkerFn(self) {
 var workerSources = {}; // global set of deps we already have on the worker side
 var pooledWorkers = {}; // global set of PooledWorker instances
 var nativeWorkers = []; // a pool of native web workers
-
-function handleWorkerMessage(e) {
-    var worker = pooledWorkers[e.data.workerId];
-    if (worker) {
-        worker.onmessage(e.data.type, e.data.data);
-    }
-}
-
-function initWorkerPool() {
-    for (var i = 0; i < PooledWorker.workerCount; i++) {
-        var nativeWorker = createWorker('(' + nativeWorkerFn + ')(self)');
-        nativeWorker.onmessage = handleWorkerMessage;
-        nativeWorkers.push(nativeWorker);
-    }
-}
-
-function broadcastBundle(url) {
-    for (var i = 0; i < nativeWorkers.length; i++) {
-        nativeWorkers[i].postMessage({bundle: url});
-    }
-}
-
 var lastWorkerId = 0;
 
 function PooledWorker(moduleFn) {
-    this.id = lastWorkerId++;
-
     if (nativeWorkers.length === 0) {
-        initWorkerPool();
+        createNativeWorkers();
     }
-    this.worker = nativeWorkers[this.id % PooledWorker.workerCount];
 
+    this.id = lastWorkerId++;
     pooledWorkers[this.id] = this;
 
-    // make a blog URL out of any worker bundle additions
-    for (var id in browserifyCache) {
-        if (browserifyCache[id].exports === moduleFn) {
-            this.moduleId = id;
-            break;
-        }
-    }
-    var addedSources = {};
-    resolveSources(workerSources, addedSources, this.moduleId);
-    var src = generateWorkerBundle(Object.keys(addedSources));
-    var bundleUrl = createURL(src);
+    var moduleId = findModuleId(moduleFn);
+    broadcastBundle(moduleId);
 
-    // propagate the bundle additions to all pool workers
-    broadcastBundle(bundleUrl);
+    // pick one of the native workers
+    this.worker = nativeWorkers[this.id % PooledWorker.workerCount];
 
-    // initialize pooled worker instance on the worker side
+    // create workerside pooled worker
     this.worker.postMessage({
         workerId: this.id,
-        moduleId: this.moduleId
+        moduleId: moduleId
     });
 }
 
@@ -138,7 +106,49 @@ PooledWorker.prototype = {
     }
 };
 
-// generates a bundle from a set of Browserify deps
+function handleWorkerMessage(e) {
+    var worker = pooledWorkers[e.data.workerId];
+    if (worker) {
+        worker.onmessage(e.data.type, e.data.data);
+    }
+}
+
+function createNativeWorkers() {
+    for (var i = 0; i < PooledWorker.workerCount; i++) {
+        var nativeWorker = createWorker('(' + nativeWorkerFn + ')(self)');
+        nativeWorker.onmessage = handleWorkerMessage;
+        nativeWorkers.push(nativeWorker);
+    }
+}
+
+// make a blob URL out of any worker bundle additions
+// and propagate it to all native workers
+function broadcastBundle(moduleId) {
+    var addedSources = {};
+    resolveSources(workerSources, addedSources, moduleId);
+    var deps = Object.keys(addedSources);
+
+    if (deps.length) {
+        var src = generateWorkerBundle(deps);
+        var url = createURL(src);
+
+        for (var i = 0; i < nativeWorkers.length; i++) {
+            nativeWorkers[i].postMessage({bundle: url});
+        }
+    }
+}
+
+// find the Browserify id of the required module
+function findModuleId(moduleFn) {
+    for (var id in browserifyCache) {
+        if (browserifyCache[id].exports === moduleFn) {
+            return id;
+        }
+    }
+    throw new Error('Module not found in Browserify bundle.');
+}
+
+// generate a bundle from a set of Browserify deps
 function generateWorkerBundle(deps) {
     return 'self.require=(' + browserifyBundleFn + ')({' + deps.map(function (key) {
         var source = browserifySources[key];
@@ -146,7 +156,7 @@ function generateWorkerBundle(deps) {
     }).join(',') + '},{},[])';
 }
 
-// resolves Browserify deps and finds all modules than are not yet on the worker side
+// resolve Browserify deps and find all modules that are not yet on the worker side
 function resolveSources(workerSources, addedSources, key) {
     if (workerSources[key]) return;
 
@@ -159,7 +169,7 @@ function resolveSources(workerSources, addedSources, key) {
     }
 }
 
-// creates a worker from code
+// create a native web worker from code
 function createWorker(src) {
     var workerUrl = createURL(src);
     var worker = new Worker(workerUrl);
@@ -167,7 +177,7 @@ function createWorker(src) {
     return worker;
 }
 
-// creates an Blob object URL from code
+// create an Blob object URL from code
 function createURL(src) {
     var URL = window.URL || window.webkitURL;
     var blob = new Blob([src], {type: 'text/javascript'});

@@ -1,6 +1,8 @@
 'use strict';
 
-var PooledWorker = require('../../');
+var createWorkerPool = require('../../');
+
+var PooledWorker = createWorkerPool(4);
 
 console.log('main: creating worker');
 var worker = new PooledWorker(require('./worker'));

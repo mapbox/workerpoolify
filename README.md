@@ -14,7 +14,8 @@ its module dependencies are lazily loaded on the worker side with some clever tr
 #### main.js
 
 ```js
-var PooledWorker = require('workerpoolify');
+var workerpoolify = require('workerpoolify');
+var PooledWorker = workerpoolify(4);
 
 var worker = new PooledWorker(require('./worker'));
 worker.onmessage = function (type, data) {

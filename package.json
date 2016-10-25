@@ -4,7 +4,8 @@
   "description": "A worker pool for Browserify-bundled projects.",
   "main": "index.js",
   "scripts": {
-    "test": "eslint index.js",
+    "pretest": "eslint index.js test/**/*.js",
+    "test": "browserify test/basic | tape-run",
     "build-debug": "browserify debug/src/main.js > debug/main.js"
   },
   "keywords": [],
@@ -15,7 +16,9 @@
   },
   "devDependencies": {
     "eslint": "^3.8.1",
-    "eslint-config-mourner": "^2.0.1"
+    "eslint-config-mourner": "^2.0.1",
+    "tape": "^4.6.2",
+    "tape-run": "^2.1.4"
   },
   "eslintConfig": {
     "extends": "mourner"

@@ -4,7 +4,7 @@
   "description": "A worker pool for Browserify-bundled projects.",
   "main": "index.js",
   "scripts": {
-    "pretest": "eslint index.js test/**/*.js",
+    "pretest": "eslint index.js test/**/*.js debug/src/*.js",
     "test": "browserify test/*/index.js | tape-run",
     "build-debug": "browserify debug/src/main.js > debug/main.js"
   },

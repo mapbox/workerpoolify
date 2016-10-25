@@ -1,13 +1,14 @@
 'use strict';
 
 var createWorkerPool = require('../../');
+var TestWorker = require('./worker');
 
 var PooledWorker = createWorkerPool(4);
 
 console.log('main: creating worker');
-var worker = new PooledWorker(require('./worker'));
+var worker = new PooledWorker(TestWorker);
 
-worker.onmessage = function (type, data) {
+worker.onmessage = function (type) {
     if (type === 'bar') {
         console.log('main: got bar from worker');
         console.log('main: sending baz to worker');
@@ -17,21 +18,3 @@ worker.onmessage = function (type, data) {
 
 console.log('main: sending foo to worker');
 worker.send('foo');
-
-setTimeout(function () {
-    console.log('main: creating worker2');
-    var worker2 = new PooledWorker(require('./worker2'));
-
-    worker2.onmessage = function (type, data) {
-        if (type === 'answer') {
-            console.log('main: got answer ' + data + ' from worker2');
-
-            console.log('main: terminating workers');
-            worker.terminate();
-            worker2.terminate();
-        }
-    }
-
-    console.log('main: sending ask to worker2');
-    worker2.send('ask');
-}, 200);

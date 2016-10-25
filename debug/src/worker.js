@@ -1,18 +1,13 @@
 'use strict';
 
-var hello = require('./dep-shared.js');
-
 module.exports = TestWorker;
 
 function TestWorker() {
     console.log('worker: created');
-    TestWorker.sharedState.push('test');
-};
-
-TestWorker.sharedState = [];
+}
 
 TestWorker.prototype = {
-    onmessage: function (type, data) {
+    onmessage: function (type) {
         if (type === 'foo') {
             console.log('worker: got foo');
             console.log('worker: sending bar');

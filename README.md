@@ -1,4 +1,4 @@
-## workerpoolify
+## workerpoolify [![Build Status](https://travis-ci.org/mapbox/workerpoolify.svg?branch=master)](https://travis-ci.org/mapbox/workerpoolify)
 
 An experimental worker pool for Browserify-bundled projects.
 Unlike [webworkify](https://github.com/substack/webworkify),

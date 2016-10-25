@@ -66,7 +66,6 @@ function nativeWorkerFn(self) {
 function createWorkerPool(workerCount) {
     var pooledWorkers = {}; // a pool-wide set of PooledWorker instances
     var nativeWorkers = []; // a pool of native web workers
-    var nativeWorkerSources = []; // a set of module deps every native worker already has
     var lastWorkerId = 0;
 
     workerCount = workerCount || 4;
@@ -82,11 +81,10 @@ function createWorkerPool(workerCount) {
         var moduleId = findModuleId(moduleFn);
 
         // pick one of the native workers
-        var nativeWorkerIndex = this.id % workerCount;
-        this.worker = nativeWorkers[nativeWorkerIndex];
+        this.worker = nativeWorkers[this.id % workerCount];
 
-        // broadcast bundle changes to the native worker
-        broadcastBundle(moduleId, nativeWorkerSources[nativeWorkerIndex], this.worker);
+        // propagate any bundle changes to the native worker
+        updateBundle(moduleId, this.worker);
 
         // create workerside pooled worker
         this.worker.postMessage({
@@ -120,8 +118,8 @@ function createWorkerPool(workerCount) {
         for (var i = 0; i < workerCount; i++) {
             var nativeWorker = new Worker(nativeWorkerUrl);
             nativeWorker.onmessage = handleWorkerMessage;
+            nativeWorker.bundleSources = {};
             nativeWorkers.push(nativeWorker);
-            nativeWorkerSources.push({});
         }
     }
 
@@ -140,17 +138,16 @@ function createWorkerPool(workerCount) {
 }
 
 // make a blob URL out of any worker bundle additions and propagate it to the native worker
-function broadcastBundle(moduleId, workerSources, nativeWorker) {
+function updateBundle(moduleId, nativeWorker) {
     var addedSources = {};
-    resolveSources(workerSources, addedSources, moduleId);
+    resolveSources(nativeWorker.bundleSources, addedSources, moduleId);
+
     var deps = Object.keys(addedSources);
+    if (!deps.length) return;
 
-    if (deps.length) {
-        var src = generateWorkerBundle(deps);
-        var url = createURL(src);
-
-        nativeWorker.postMessage({bundle: url});
-    }
+    var src = generateWorkerBundle(deps);
+    var url = createURL(src);
+    nativeWorker.postMessage({bundle: url});
 }
 
 // find the Browserify id of the required module

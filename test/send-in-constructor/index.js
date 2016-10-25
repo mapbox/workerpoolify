@@ -6,7 +6,7 @@ var TestWorker = require('./worker');
 
 var PooledWorker = createWorkerPool(4);
 
-test('roundtrip messages to one worker', {timeout: 100}, function (t) {
+test('send in worker constructor', {timeout: 100}, function (t) {
     var worker = new PooledWorker(TestWorker);
     t.pass('main: create worker');
 

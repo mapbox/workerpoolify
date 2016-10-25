@@ -42,6 +42,7 @@ function nativeWorkerFn(self) {
 
         if (data.bundle) { // add missing dependencies
             self.importScripts(data.bundle);
+            URL.revokeObjectURL(data.bundle); // the url won't be needed after importing
         }
         if (data.moduleId) { // create workerside pooled worker
             createWorkersidePooledWorker(data.moduleId, data.workerId);

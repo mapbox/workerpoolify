@@ -8,11 +8,11 @@ module.exports = TestWorker2;
 function TestWorker2() {}
 
 TestWorker2.prototype = {
-    onmessage: function (type, data) {
-        if (type === 'ask') {
-            this.send('answer', data + ' ' + hello + ' ' + answer);
+    onmessage: function (e) {
+        if (e.data.type === 'ask') {
+            this.postMessage({type: 'answer', message: e.data.message + ' ' + hello + ' ' + answer});
         } else {
-            this.send('error');
+            this.postMessage({type: 'error'});
         }
     }
 };

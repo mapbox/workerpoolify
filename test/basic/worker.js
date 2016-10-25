@@ -7,13 +7,14 @@ module.exports = TestWorker;
 function TestWorker() {}
 
 TestWorker.prototype = {
-    onmessage: function (type) {
+    onmessage: function (e) {
+        var type = e.data.type;
         if (type === 'foo') {
-            this.send('bar');
+            this.postMessage({type: 'bar'});
         } else if (type === 'baz') {
-            this.send('end', hello);
+            this.postMessage({type: 'end', message: hello});
         } else {
-            this.send('error');
+            this.postMessage({type: 'error'});
         }
     }
 };

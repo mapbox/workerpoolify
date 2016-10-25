@@ -6,19 +6,16 @@ module.exports = TestWorker;
 
 function TestWorker() {
     console.log('worker: created');
-    TestWorker.sharedState.push('test');
 };
 
-TestWorker.sharedState = [];
-
 TestWorker.prototype = {
-    onmessage: function (type, data) {
-        if (type === 'foo') {
+    onmessage: function (e) {
+        if (e.data.type === 'foo') {
             console.log('worker: got foo');
             console.log('worker: sending bar');
-            this.send('bar');
+            this.postMessage({type: 'bar'});
         }
-        if (type === 'baz') {
+        if (e.data.type === 'baz') {
             console.log('worker: got baz');
         }
     },

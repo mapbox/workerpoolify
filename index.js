@@ -9,11 +9,10 @@ module.exports = createWorkerPool;
 function nativeWorkerFn(self) {
     var workersidePooledWorkers = {};
 
-    function send(type, data) {
+    function send(data) {
         self.postMessage({
-            type: type,
-            data: data,
-            workerId: this.workerId
+            workerId: this.workerId,
+            data: data
         });
     }
 
@@ -30,7 +29,7 @@ function nativeWorkerFn(self) {
         if (Worker.prototype.workerId) {
             throw new Error('Pooled worker class should not have a workerId property.');
         }
-        Worker.prototype.send = send;
+        Worker.prototype.postMessage = send;
         Worker.prototype.workerId = workerId;
 
         workersidePooledWorkers[workerId] = new Worker();
@@ -42,22 +41,25 @@ function nativeWorkerFn(self) {
 
         if (data.bundle) { // add missing dependencies
             self.importScripts(data.bundle);
-        }
-        if (data.moduleId) { // create workerside pooled worker
+
+        } else if (data.moduleId) { // create workerside pooled worker
             createWorkersidePooledWorker(data.moduleId, data.workerId);
-        }
-        if (data.type) { // process message to the worker
+
+        } else if (data.data) { // process message to the worker
             worker = workersidePooledWorkers[data.workerId];
             if (worker.onmessage) {
-                worker.onmessage(data.type, data.data);
+                worker.onmessage({data: data.data});
             }
-        }
-        if (data.terminate) { // terminate the worker
+
+        } else if (data.terminate) { // terminate the worker
             worker = workersidePooledWorkers[data.workerId];
             delete workersidePooledWorkers[data.workerId];
             if (worker.onterminate) {
                 worker.onterminate();
             }
+
+        } else {
+            throw new Error('Unexpected message: ' + e);
         }
     };
 }
@@ -93,10 +95,9 @@ function createWorkerPool(workerCount) {
 
     PooledWorker.prototype = {
 
-        send: function (type, data) {
+        postMessage: function (data) {
             this.worker.postMessage({
                 workerId: this.id,
-                type: type,
                 data: data
             });
         },
@@ -121,7 +122,7 @@ function createWorkerPool(workerCount) {
     function handleWorkerMessage(e) {
         var worker = pooledWorkers[e.data.workerId];
         if (worker) {
-            worker.onmessage(e.data.type, e.data.data);
+            worker.onmessage(e.data);
         }
     }
 

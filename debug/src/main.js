@@ -11,20 +11,20 @@ worker.onmessage = function (type, data) {
     if (type === 'bar') {
         console.log('main: got bar from worker');
         console.log('main: sending baz to worker');
-        this.send('baz');
+        this.postMessage({type: 'baz'});
     }
 };
 
 console.log('main: sending foo to worker');
-worker.send('foo');
+worker.postMessage({type: 'foo'});
 
 setTimeout(function () {
     console.log('main: creating worker2');
     var worker2 = new PooledWorker(require('./worker2'));
 
-    worker2.onmessage = function (type, data) {
-        if (type === 'answer') {
-            console.log('main: got answer ' + data + ' from worker2');
+    worker2.onmessage = function (e) {
+        if (e.data.type === 'answer') {
+            console.log('main: got answer ' + e.data.message + ' from worker2');
 
             console.log('main: terminating workers');
             worker.terminate();
@@ -33,5 +33,5 @@ setTimeout(function () {
     }
 
     console.log('main: sending ask to worker2');
-    worker2.send('ask');
+    worker2.postMessage({type: 'ask'});
 }, 200);

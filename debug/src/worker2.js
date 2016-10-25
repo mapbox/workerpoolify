@@ -10,11 +10,11 @@ function TestWorker2() {
 };
 
 TestWorker2.prototype = {
-    onmessage: function (type, data) {
-        if (type === 'ask') {
+    onmessage: function (e) {
+        if (e.data.type === 'ask') {
             console.log('worker2: got ask');
             console.log('worker2: sending answer');
-            this.send('answer', hello + ' ' + answer);
+            this.postMessage({type: 'answer', message: hello + ' ' + answer});
         }
     },
     onterminate: function () {

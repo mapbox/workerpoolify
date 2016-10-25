@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "pretest": "eslint index.js test/**/*.js",
-    "test": "browserify test/basic | tape-run",
+    "test": "browserify test/*/index.js | tape-run",
     "build-debug": "browserify debug/src/main.js > debug/main.js"
   },
   "keywords": [],

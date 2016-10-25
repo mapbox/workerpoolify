@@ -5,9 +5,9 @@ var createWorkerPool = require('../../');
 var TestWorker = require('./worker');
 var TestWorker2 = require('./worker2');
 
-var PooledWorker = createWorkerPool(4);
+var PooledWorker = createWorkerPool(2);
 
-test('roundtrip messages to one worker', function (t) {
+test('roundtrip messages to one worker', {timeout: 200}, function (t) {
     var worker = new PooledWorker(TestWorker);
     t.pass('main: create worker');
 
@@ -33,7 +33,7 @@ test('roundtrip messages to one worker', function (t) {
     t.pass('main: send foo');
 });
 
-test('delayed worker2 creation and more messages', function (t) {
+test('delayed worker2 creation and more messages', {timeout: 300}, function (t) {
     setTimeout(function () {
         var worker2 = new PooledWorker(TestWorker2);
         t.pass('main: create worker2');
@@ -52,5 +52,5 @@ test('delayed worker2 creation and more messages', function (t) {
 
         worker2.send('ask', 100);
         t.pass('main: send ask');
-    }, 200);
+    }, 100);
 });

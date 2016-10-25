@@ -4,7 +4,7 @@ var test = require('tape');
 var createWorkerPool = require('../../');
 var TestWorker = require('./worker');
 
-var PooledWorker = createWorkerPool(4);
+var PooledWorker = createWorkerPool(1);
 
 test('multiple workers of the same type', {timeout: 200}, function (t) {
     var worker1 = new PooledWorker(TestWorker);

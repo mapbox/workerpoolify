@@ -4,9 +4,9 @@ var test = require('tape');
 var createWorkerPool = require('../../');
 var TestWorker = require('./worker');
 
-var PooledWorker = createWorkerPool(4);
+var PooledWorker = createWorkerPool(1);
 
-test('send in worker constructor', {timeout: 100}, function (t) {
+test('send in worker constructor', {timeout: 200}, function (t) {
     var worker = new PooledWorker(TestWorker);
     t.pass('main: create worker');
 

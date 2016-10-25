@@ -114,8 +114,10 @@ function createWorkerPool(workerCount) {
     };
 
     function createNativeWorkers() {
+        var nativeWorkerUrl = createURL('(' + nativeWorkerFn + ')(self)');
+
         for (var i = 0; i < workerCount; i++) {
-            var nativeWorker = createWorker('(' + nativeWorkerFn + ')(self)');
+            var nativeWorker = new Worker(nativeWorkerUrl);
             nativeWorker.onmessage = handleWorkerMessage;
             nativeWorkers.push(nativeWorker);
             nativeWorkerSources.push({});
@@ -175,14 +177,6 @@ function resolveSources(workerSources, addedSources, key) {
     for (var depPath in deps) {
         resolveSources(workerSources, addedSources, deps[depPath]);
     }
-}
-
-// create a native web worker from code
-function createWorker(src) {
-    var workerUrl = createURL(src);
-    var worker = new Worker(workerUrl);
-    worker.objectURL = workerUrl;
-    return worker;
 }
 
 // create an Blob object URL from code

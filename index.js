@@ -20,17 +20,20 @@ function nativeWorkerFn(self) {
     function createWorkersidePooledWorker(moduleId, workerId) {
         var WorkerClass = self.require(moduleId);
 
-        var proto = WorkerClass.prototype;
-        if (proto.send) {
-            throw new Error('pooled worker class should not have a send property');
+        function Worker() {
+            WorkerClass.call(this);
         }
-        if (proto.workerId) {
-            throw new Error('pooled worker class should not have a workerId property');
+        Worker.prototype = Object.create(WorkerClass.prototype);
+        if (Worker.prototype.send) {
+            throw new Error('Pooled worker class should not have a send property.');
         }
-        proto.send = send;
-        proto.workerId = workerId;
+        if (Worker.prototype.workerId) {
+            throw new Error('Pooled worker class should not have a workerId property.');
+        }
+        Worker.prototype.send = send;
+        Worker.prototype.workerId = workerId;
 
-        workersidePooledWorkers[workerId] = new WorkerClass();
+        workersidePooledWorkers[workerId] = new Worker();
     }
 
     self.onmessage = function (e) {

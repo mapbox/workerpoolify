@@ -42,7 +42,7 @@ function nativeWorkerFn(self) {
 
         if (data.bundle) { // add missing dependencies
             self.importScripts(data.bundle);
-            URL.revokeObjectURL(data.bundle); // the url won't be needed after importing
+            self.postMessage({revoke: data.bundle});
         }
         if (data.moduleId) { // create workerside pooled worker
             createWorkersidePooledWorker(data.moduleId, data.workerId);
@@ -126,9 +126,13 @@ function createWorkerPool(workerCount) {
     }
 
     function handleWorkerMessage(e) {
-        var worker = pooledWorkers[e.data.workerId];
-        if (worker) {
-            worker.onmessage(e.data.type, e.data.data);
+        if (e.data.revoke) {
+            URL.revokeObjectURL(e.data.revoke); // the url won't be needed after importing
+        } else {
+            var worker = pooledWorkers[e.data.workerId];
+            if (worker) {
+                worker.onmessage(e.data.type, e.data.data);
+            }
         }
     }
 

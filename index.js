@@ -9,12 +9,12 @@ module.exports = createWorkerPool;
 function nativeWorkerFn(self) {
     var workersidePooledWorkers = {};
 
-    function send(type, data) {
+    function send(type, data, transferList) {
         self.postMessage({
             type: type,
             data: data,
             workerId: this.workerId
-        });
+        }, transferList);
     }
 
     function createWorkersidePooledWorker(moduleId, workerId) {
@@ -78,12 +78,11 @@ function createWorkerPool(workerCount) {
         this.id = lastWorkerId++;
         pooledWorkers[this.id] = this;
 
-        var moduleId = findModuleId(moduleFn);
-
         // pick one of the native workers
         this.worker = nativeWorkers[this.id % workerCount];
 
         // propagate any bundle changes to the native worker
+        var moduleId = findModuleId(moduleFn);
         updateBundle(moduleId, this.worker);
 
         // create workerside pooled worker
@@ -95,12 +94,12 @@ function createWorkerPool(workerCount) {
 
     PooledWorker.prototype = {
 
-        send: function (type, data) {
+        send: function (type, data, transferList) {
             this.worker.postMessage({
                 workerId: this.id,
                 type: type,
                 data: data
-            });
+            }, transferList);
         },
 
         terminate: function () {
